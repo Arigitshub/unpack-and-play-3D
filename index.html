@@ -1,0 +1,236 @@
+﻿<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Unpack &amp; Play 3D</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@400;500;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="styles.css">
+  <script type="importmap">
+    {
+      "imports": {
+        "three": "https://unpkg.com/three@0.158.0/build/three.module.js",
+        "three/addons/": "https://unpkg.com/three@0.158.0/examples/jsm/"
+      }
+    }
+  </script>
+</head>
+<body>
+  <div id="splash" class="overlay visible">
+    <div class="overlay-card">
+      <div class="logo-lockup">
+        <div class="logo-icon">📦</div>
+        <h1>Unpack &amp; Play 3D</h1>
+        <p class="tagline">Pop open the boxes, place your favorite toys, make the room your own.</p>
+      </div>
+      <div class="menu-buttons">
+        <button type="button" id="startButton" class="primary" aria-describedby="menuHelp">Play</button>
+        <div class="menu-secondary" role="group" aria-label="Secondary menu">
+          <button type="button" id="profilesButton" class="secondary">Profiles</button>
+          <button type="button" id="settingsButton" class="secondary">Settings</button>
+          <button type="button" id="tutorialButton" class="secondary">Tutorial</button>
+          <button type="button" id="creditsButton" class="secondary">Credits</button>
+        </div>
+      </div>
+      <p class="tip">Best experienced with a mouse or trackpad.</p>
+      <p id="menuHelp" class="visually-hidden">Press Enter to start or use arrow keys to explore other options.</p>
+    </div>
+  </div>
+
+  <div id="tutorial" class="overlay hidden">
+    <div class="overlay-card tutorial-card">
+      <p id="tutorialText"></p>
+      <button type="button" id="tutorialNext" class="primary">Sounds good</button>
+    </div>
+  </div>
+
+  <div id="profilesModal" class="overlay hidden" role="dialog" aria-modal="true" aria-labelledby="profilesTitle">
+    <div class="overlay-card modal-card">
+      <h2 id="profilesTitle">Choose a Profile</h2>
+      <p class="modal-subtitle">Each profile keeps its own cozy room.</p>
+      <div class="profile-grid" role="list">
+        <button type="button" class="profile-card" data-profile="suruli" role="listitem">
+          <span class="profile-name">Suruli</span>
+          <span class="profile-note">Bedroom vibes</span>
+        </button>
+        <button type="button" class="profile-card" data-profile="shimmy" role="listitem">
+          <span class="profile-name">Shimmy</span>
+          <span class="profile-note">Kitchen fun</span>
+        </button>
+        <button type="button" class="profile-card" data-profile="guest" role="listitem">
+          <span class="profile-name">Guest</span>
+          <span class="profile-note">Fantasy chest</span>
+        </button>
+      </div>
+      <button type="button" class="secondary modal-close" data-close-modal>Back</button>
+    </div>
+  </div>
+
+  <div id="settingsModal" class="overlay hidden" role="dialog" aria-modal="true" aria-labelledby="settingsTitle">
+    <div class="overlay-card modal-card">
+      <h2 id="settingsTitle">Settings</h2>
+      <div class="settings-list">
+        <label class="setting-row">
+          <span>Big UI mode</span>
+          <input type="checkbox" id="bigUiToggle">
+        </label>
+        <label class="setting-row">
+          <span>Mute sounds</span>
+          <input type="checkbox" id="settingsMuteToggle">
+        </label>
+        <label class="setting-row">
+          <span>Reduced motion</span>
+          <input type="checkbox" id="reducedMotionToggle">
+        </label>
+      </div>
+      <button type="button" id="resetRoomButton" class="secondary warning">Reset Room</button>
+      <button type="button" class="secondary modal-close" data-close-modal>Back</button>
+    </div>
+  </div>
+
+  <div id="designModal" class="overlay hidden" role="dialog" aria-modal="true" aria-labelledby="designTitle">
+    <div class="overlay-card modal-card design-card">
+      <h2 id="designTitle">Room Palette</h2>
+      <p class="modal-subtitle">Pick a color and paint part of the room.</p>
+      <div class="paint-grid">
+        <section>
+          <h3>Walls</h3>
+          <div class="swatch-row" role="group" aria-label="Wall colors">
+            <button type="button" class="swatch" data-color-swatch data-target="wall" data-color="#f5e8dc" style="--swatch-color:#f5e8dc" aria-label="Warm vanilla"></button>
+            <button type="button" class="swatch" data-color-swatch data-target="wall" data-color="#dde5ff" style="--swatch-color:#dde5ff" aria-label="Soft periwinkle"></button>
+            <button type="button" class="swatch" data-color-swatch data-target="wall" data-color="#ffe1f2" style="--swatch-color:#ffe1f2" aria-label="Cotton candy"></button>
+            <button type="button" class="swatch" data-color-swatch data-target="wall" data-color="#d9f3f0" style="--swatch-color:#d9f3f0" aria-label="Mint daydream"></button>
+          </div>
+          <h3>Accent wall</h3>
+          <div class="swatch-row" role="group" aria-label="Accent wall colors">
+            <button type="button" class="swatch" data-color-swatch data-target="accentWall" data-color="#ffb9d8" style="--swatch-color:#ffb9d8" aria-label="Pink blossom"></button>
+            <button type="button" class="swatch" data-color-swatch data-target="accentWall" data-color="#b6c7ff" style="--swatch-color:#b6c7ff" aria-label="Cloud blue"></button>
+            <button type="button" class="swatch" data-color-swatch data-target="accentWall" data-color="#ffd090" style="--swatch-color:#ffd090" aria-label="Golden peach"></button>
+            <button type="button" class="swatch" data-color-swatch data-target="accentWall" data-color="#c7b5ff" style="--swatch-color:#c7b5ff" aria-label="Lavender dusk"></button>
+          </div>
+        </section>
+        <section>
+          <h3>Floor</h3>
+          <div class="swatch-row" role="group" aria-label="Floor colors">
+            <button type="button" class="swatch" data-color-swatch data-target="floor" data-color="#fff7ec" style="--swatch-color:#fff7ec" aria-label="Creamy tile"></button>
+            <button type="button" class="swatch" data-color-swatch data-target="floor" data-color="#ffe9d3" style="--swatch-color:#ffe9d3" aria-label="Rose marble"></button>
+            <button type="button" class="swatch" data-color-swatch data-target="floor" data-color="#ecf6ff" style="--swatch-color:#ecf6ff" aria-label="Icy dew"></button>
+            <button type="button" class="swatch" data-color-swatch data-target="floor" data-color="#f9ffe3" style="--swatch-color:#f9ffe3" aria-label="Lemon frost"></button>
+          </div>
+          <h3>Trim</h3>
+          <div class="swatch-row" role="group" aria-label="Trim colors">
+            <button type="button" class="swatch" data-color-swatch data-target="baseboard" data-color="#ffc7f0" style="--swatch-color:#ffc7f0" aria-label="Petal pink"></button>
+            <button type="button" class="swatch" data-color-swatch data-target="baseboard" data-color="#cfe4ff" style="--swatch-color:#cfe4ff" aria-label="Sky glaze"></button>
+            <button type="button" class="swatch" data-color-swatch data-target="baseboard" data-color="#ffe7b9" style="--swatch-color:#ffe7b9" aria-label="Buttercream"></button>
+            <button type="button" class="swatch" data-color-swatch data-target="baseboard" data-color="#c4f0df" style="--swatch-color:#c4f0df" aria-label="Seafoam"></button>
+          </div>
+        </section>
+        <section>
+          <h3>Rugs</h3>
+          <div class="swatch-row" role="group" aria-label="Rug colors">
+            <button type="button" class="swatch" data-color-swatch data-target="rug" data-color="#ffb4d9" style="--swatch-color:#ffb4d9" aria-label="Bubblegum"></button>
+            <button type="button" class="swatch" data-color-swatch data-target="rug" data-color="#b7f5d8" style="--swatch-color:#b7f5d8" aria-label="Mint meadow"></button>
+            <button type="button" class="swatch" data-color-swatch data-target="rug" data-color="#ffe58f" style="--swatch-color:#ffe58f" aria-label="Sunshine"></button>
+            <button type="button" class="swatch" data-color-swatch data-target="rug" data-color="#d1c2ff" style="--swatch-color:#d1c2ff" aria-label="Plum haze"></button>
+          </div>
+          <h3>Accent mat</h3>
+          <div class="swatch-row" role="group" aria-label="Accent mat colors">
+            <button type="button" class="swatch" data-color-swatch data-target="mat" data-color="#ffe1f8" style="--swatch-color:#ffe1f8" aria-label="Cherry blossom"></button>
+            <button type="button" class="swatch" data-color-swatch data-target="mat" data-color="#cde7ff" style="--swatch-color:#cde7ff" aria-label="Morning sky"></button>
+            <button type="button" class="swatch" data-color-swatch data-target="mat" data-color="#ffd9aa" style="--swatch-color:#ffd9aa" aria-label="Tangerine cream"></button>
+            <button type="button" class="swatch" data-color-swatch data-target="mat" data-color="#b1f1ff" style="--swatch-color:#b1f1ff" aria-label="Crystal pool"></button>
+          </div>
+        </section>
+        <section>
+          <h3>String lights</h3>
+          <div class="swatch-row" role="group" aria-label="String light colors">
+            <button type="button" class="swatch" data-color-swatch data-target="lights" data-color="#ffe9a3" style="--swatch-color:#ffe9a3" aria-label="Golden twinkle"></button>
+            <button type="button" class="swatch" data-color-swatch data-target="lights" data-color="#c8ffff" style="--swatch-color:#c8ffff" aria-label="Frost sparkle"></button>
+            <button type="button" class="swatch" data-color-swatch data-target="lights" data-color="#ffd1ff" style="--swatch-color:#ffd1ff" aria-label="Fairy pink"></button>
+            <button type="button" class="swatch" data-color-swatch data-target="lights" data-color="#afffd8" style="--swatch-color:#afffd8" aria-label="Seafoam glow"></button>
+          </div>
+        </section>
+      </div>
+      <button type="button" id="resetPaletteButton" class="secondary">Reset Theme Colors</button>
+      <button type="button" class="secondary modal-close" data-close-modal>Back</button>
+    </div>
+  </div>
+
+  <div id="creditsModal" class="overlay hidden" role="dialog" aria-modal="true" aria-labelledby="creditsTitle">
+    <div class="overlay-card modal-card">
+      <h2 id="creditsTitle">Credits</h2>
+      <ul class="credits-list">
+        <li>Design &amp; Engineering: Unpack &amp; Play Team</li>
+        <li>Art Direction: Cozy SVG Studios</li>
+        <li>Audio: Gentle Parcel Pops</li>
+        <li>Special thanks to Suruli &amp; Shimmy for playtesting!</li>
+      </ul>
+      <button type="button" class="secondary modal-close" data-close-modal>Back</button>
+    </div>
+  </div>
+
+  <div id="hud" role="region" aria-label="Game HUD">
+    <div class="hud-row">
+      <div class="logo-small" aria-hidden="true">Unpack &amp; Play</div>
+      <div class="hud-status">
+        <span id="currentProfile" class="hud-chip" aria-live="polite">Profile: Guest</span>
+        <div id="progress">Placed <span id="placedCount">0</span>/<span id="totalCount">0</span> items</div>
+      </div>
+    </div>
+    <div class="hud-row hud-row-wrap">
+      <div class="control-group">
+        <span class="control-label">Rotate</span>
+        <button type="button" id="rotateLeft" class="secondary" disabled>&larr; Left</button>
+        <button type="button" id="rotateRight" class="secondary" disabled>Right &rarr;</button>
+      </div>
+      <div class="control-group">
+        <span class="control-label">Snapping</span>
+        <label class="toggle">
+          <input type="checkbox" id="snapToggle" checked>
+          <span>On</span>
+        </label>
+        <button type="button" id="gridToggle" class="secondary" aria-pressed="false" title="Toggle grid snapping (G)">Grid</button>
+      </div>
+      <div class="control-group">
+        <span class="control-label">Design</span>
+        <button type="button" id="designButton" class="secondary">Open Palette</button>
+      </div>
+      <div class="control-group">
+        <span class="control-label">Share</span>
+        <button type="button" id="screenshotButton" class="secondary" aria-label="Download screenshot">Screenshot</button>
+        <button type="button" id="exportButton" class="secondary">Export</button>
+        <button type="button" id="importButton" class="secondary">Import</button>
+      </div>
+      <div class="control-group">
+        <span class="control-label">Audio</span>
+        <button type="button" id="muteButton" class="secondary" aria-pressed="false">Sound On</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="diagnosticsPanel" class="floating-panel hidden" role="status" aria-live="polite">
+    <header>
+      <h2>Diagnostics</h2>
+      <p class="hint">Press D to toggle</p>
+    </header>
+    <dl>
+      <div><dt>FPS</dt><dd id="diagFps">--</dd></div>
+      <div><dt>Draw Calls</dt><dd id="diagDrawCalls">--</dd></div>
+      <div><dt>Triangles</dt><dd id="diagTriangles">--</dd></div>
+      <div><dt>Geometries</dt><dd id="diagGeometries">--</dd></div>
+      <div><dt>Textures</dt><dd id="diagTextures">--</dd></div>
+      <div><dt>GPU</dt><dd id="diagGpu">--</dd></div>
+    </dl>
+  </div>
+
+  <div id="toast" class="hidden" role="status" aria-live="polite"></div>
+
+  <div id="scene-container"></div>
+
+  <input type="file" id="importInput" accept="application/json" class="visually-hidden" aria-hidden="true">
+
+  <script type="module" src="main.js"></script>
+</body>
+</html>

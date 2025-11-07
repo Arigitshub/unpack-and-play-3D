@@ -1,0 +1,26 @@
+{
+  "name": "unpack-and-play-3d",
+  "private": true,
+  "scripts": {
+    "start": "serve -l 5173 .",
+    "lint": "eslint . --ext .js,.ts,.jsx,.tsx --max-warnings=0",
+    "format": "prettier -w .",
+    "test": "vitest run",
+    "test:ui": "vitest",
+    "e2e": "playwright test",
+    "perf": "lighthouse http://localhost:5173 --quiet --chrome-flags=\"--headless\" --output html --output-path ./reports/lighthouse.html"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.48.0",
+    "axe-core": "^4.9.0",
+    "eslint": "^8.57.0",
+    "eslint-config-standard": "^17.1.0",
+    "eslint-plugin-import": "^2.29.0",
+    "eslint-plugin-n": "^16.3.1",
+    "eslint-plugin-promise": "^6.1.1",
+    "lighthouse": "^12.0.0",
+    "prettier": "^3.2.0",
+    "serve": "^14.2.0",
+    "vitest": "^2.0.0"
+  }
+}
