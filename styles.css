@@ -524,6 +524,26 @@ body[data-reduced-motion="true"] * {
   max-width: 360px;
 }
 
+#onboarding .onboarding-cards {
+    display: flex;
+    gap: 16px;
+    margin: 24px 0;
+}
+
+#onboarding .onboarding-card {
+    background: rgba(255, 255, 255, 0.7);
+    border-radius: 16px;
+    padding: 24px;
+    flex: 1;
+    border: 2px solid transparent;
+    transition: border-color 0.2s ease;
+}
+
+#onboarding .onboarding-card.active {
+    border-color: #ff9ee2;
+}
+
+
 @media (max-width: 768px) {
   #hud {
     left: 12px;
@@ -544,6 +564,35 @@ body[data-reduced-motion="true"] * {
   #scene-container {
     inset: 0;
   }
+}
+
+body.photo-mode #hud,
+body.photo-mode #toolbar,
+body.photo-mode #toast {
+  display: none;
+}
+
+body.kids-mode .control-group:has(#scale-controls) {
+    display: none;
+}
+
+body.kids-mode #toolbar button {
+    font-size: 1.2rem;
+    padding: 16px 24px;
+}
+
+#toolbar {
+  position: fixed;
+  bottom: 24px;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  gap: 12px;
+  padding: 12px;
+  background: rgba(255, 255, 255, 0.55);
+  border-radius: 16px;
+  box-shadow: 0 12px 24px rgba(55, 26, 77, 0.1);
+  z-index: 5;
 }
 
 @media (max-width: 480px) {

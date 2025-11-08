@@ -1,0 +1,52 @@
+[
+  {
+    "id": "bed_01",
+    "name": "Cozy Bed",
+    "file": "assets/models/bed_01.glb",
+    "category": "Furniture",
+    "scale": 1.0,
+    "variants": [{"name":"Walnut","colorHex":"#6b4b3e"}],
+    "bounds": {"x":2.0,"y":1.2,"z":1.5},
+    "snap": {"grid":0.25,"rotationStepDeg":15}
+  },
+  {
+    "id": "dresser_01",
+    "name": "Wooden Dresser",
+    "file": "assets/models/dresser_01.glb",
+    "category": "Furniture",
+    "scale": 1.0,
+    "variants": [{"name":"Pine","colorHex":"#967959"}],
+    "bounds": {"x":1.5,"y":1.0,"z":0.6},
+    "snap": {"grid":0.25,"rotationStepDeg":15}
+  },
+  {
+    "id": "lamp_01",
+    "name": "Bedside Lamp",
+    "file": "assets/models/lamp_01.glb",
+    "category": "Lighting",
+    "scale": 1.0,
+    "variants": [{"name":"Default","colorHex":"#f2e1ac"}],
+    "bounds": {"x":0.4,"y":0.6,"z":0.4},
+    "snap": {"grid":0.25,"rotationStepDeg":15}
+  },
+  {
+    "id": "plant_01",
+    "name": "Potted Plant",
+    "file": "assets/models/plant_01.glb",
+    "category": "Decor",
+    "scale": 1.0,
+    "variants": [{"name":"Default","colorHex":"#559658"}],
+    "bounds": {"x":0.5,"y":0.8,"z":0.5},
+    "snap": {"grid":0.25,"rotationStepDeg":15}
+  },
+  {
+    "id": "rug_01",
+    "name": "Round Rug",
+    "file": "assets/models/rug_01.glb",
+    "category": "Decor",
+    "scale": 1.0,
+    "variants": [{"name":"Default","colorHex":"#d1a3a3"}],
+    "bounds": {"x":2.0,"y":0.02,"z":2.0},
+    "snap": {"grid":0.25,"rotationStepDeg":15}
+  }
+]
