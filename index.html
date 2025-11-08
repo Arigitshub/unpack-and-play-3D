@@ -171,6 +171,32 @@
     </div>
   </div>
 
+  <div id="onboarding" class="overlay hidden">
+      <div class="overlay-card">
+          <h2 id="onboardingTitle">Welcome to Unpack & Play!</h2>
+          <p id="onboardingText">Let's get you started.</p>
+          <div class="onboarding-cards">
+              <div class="onboarding-card" data-step="1">
+                  <h3>1. Click an Item</h3>
+                  <p>Click on an item in the catalog to select it.</p>
+              </div>
+              <div class="onboarding-card" data-step="2">
+                  <h3>2. Rotate with Q/E</h3>
+                  <p>Use the Q and E keys to rotate the selected item.</p>
+              </div>
+              <div class="onboarding-card" data-step="3">
+                  <h3>3. Save Your Creation</h3>
+                  <p>Click the "Save" button to save your room.</p>
+              </div>
+          </div>
+          <button id="onboardingNext" class="primary">Next</button>
+          <label>
+              <input type="checkbox" id="dontShowAgain">
+              Don't show this again
+          </label>
+      </div>
+  </div>
+
   <div id="hud" role="region" aria-label="Game HUD">
     <div class="hud-row">
       <div class="logo-small" aria-hidden="true">Unpack &amp; Play</div>
@@ -228,6 +254,34 @@
   <div id="toast" class="hidden" role="status" aria-live="polite"></div>
 
   <div id="scene-container"></div>
+
+  <div id="toolbar">
+    <button id="undoButton" class="secondary">Undo</button>
+    <button id="redoButton" class="secondary">Redo</button>
+    <button id="saveButton" class="secondary">Save</button>
+    <button id="loadButton" class="secondary">Load</button>
+    <button id="photoModeButton" class="secondary">Photo Mode</button>
+    <button id="kidsModeButton" class="secondary">Kids Mode</button>
+    <button id="randomizeButton" class="secondary">Randomize Cozy</button>
+    <button id="helpButton" class="secondary">?</button>
+  </div>
+
+  <div id="helpModal" class="overlay hidden" role="dialog" aria-modal="true" aria-labelledby="helpTitle">
+    <div class="overlay-card modal-card">
+      <h2 id="helpTitle">Keyboard Shortcuts</h2>
+      <ul class="credits-list">
+        <li><strong>Q/E:</strong> Rotate selected item</li>
+        <li><strong>Shift + Q/E:</strong> Fine-tune rotation</li>
+        <li><strong>D:</strong> Duplicate selected item</li>
+        <li><strong>Delete/Backspace:</strong> Delete selected item</li>
+        <li><strong>Ctrl+Z:</strong> Undo</li>
+        <li><strong>Ctrl+Y / Ctrl+Shift+Z:</strong> Redo</li>
+        <li><strong>G:</strong> Toggle grid snap</li>
+        <li><strong>P:</strong> Toggle Photo Mode</li>
+      </ul>
+      <button type="button" class="secondary modal-close" data-close-modal>Back</button>
+    </div>
+  </div>
 
   <input type="file" id="importInput" accept="application/json" class="visually-hidden" aria-hidden="true">
 
