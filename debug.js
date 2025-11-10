@@ -44,7 +44,7 @@ function startServer() {
   });
 }
 
-(async () => {
+(async() => {
   const server = await startServer();
   const browser = await chromium.launch({ headless: true, args: ['--disable-gpu', '--use-gl=swiftshader'] });
   const context = await browser.newContext();

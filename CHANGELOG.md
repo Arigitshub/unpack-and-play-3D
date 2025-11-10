@@ -8,3 +8,4 @@
 - **Visuals & Audio:** Added realistic HDRI lighting, cinematic tone mapping, and sound effects for key interactions like placing, rotating, and deleting items.
 - **UI/UX:** Built the main toolbar, Photo Mode, Kids Mode (with larger UI and simplified controls), and a one-time onboarding tutorial for new players.
 - **Extras:** "Randomize Cozy" feature to instantly create a fun starting point for decoration.
+- **feat:** add Runner Mode, Milestones v2, offline & export integration
