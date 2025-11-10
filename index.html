@@ -264,6 +264,28 @@
     <button id="kidsModeButton" class="secondary">Kids Mode</button>
     <button id="randomizeButton" class="secondary">Randomize Cozy</button>
     <button id="helpButton" class="secondary">?</button>
+    <button id="btnRunner" class="btn">Play ▶ Runner</button>
+  </div>
+
+  <div id="runnerHud" style="display:none">
+    <div class="hud-pill"><span id="runnerTime">0.0s</span></div>
+    <div class="hud-pill"><span id="runnerStars">★ 0</span></div>
+    <div class="hud-pill"><span id="runnerBest">Best: 0.0s / ★0</span></div>
+  </div>
+
+  <div id="runnerPause" class="panel" style="display:none">
+    <h2>Paused</h2>
+    <button id="btnRunnerResume">Resume</button>
+    <button id="btnRunnerRestart">Restart</button>
+    <button id="btnRunnerBack">Back to Decorator</button>
+    <label><input type="checkbox" id="runnerLowGpu"> Low GPU Mode</label>
+  </div>
+
+  <div id="runnerFinish" class="panel" style="display:none">
+    <h2>Run Summary</h2>
+    <div id="runnerSummaryText"></div>
+    <button id="btnRunnerAgain">Run Again</button>
+    <button id="btnRunnerBack2">Back to Decorator</button>
   </div>
 
   <div id="helpModal" class="overlay hidden" role="dialog" aria-modal="true" aria-labelledby="helpTitle">

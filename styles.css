@@ -606,3 +606,46 @@ body.kids-mode #toolbar button {
     gap: 6px;
   }
 }
+
+.hud-pill {
+  padding: .4rem .8rem;
+  border-radius: 999px;
+  backdrop-filter: saturate(1.1) blur(4px);
+  background: rgba(255, 255, 255, 0.7);
+}
+
+#runnerHud {
+  position: fixed;
+  top: 12px;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  gap: .5rem;
+  z-index: 1000;
+}
+
+.panel {
+  position: fixed;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  background: rgba(0,0,0,.35);
+  z-index: 1100;
+}
+
+.panel > * {
+  background: var(--panel, #1f1f1f);
+  color: #fff;
+  padding: 1rem;
+  border-radius: 12px;
+  min-width: 260px;
+  text-align: center;
+}
+
+body.kiosk {
+    font-size: 18px;
+}
+
+body.low-gpu * {
+    transition-duration: 0.01ms !important;
+}

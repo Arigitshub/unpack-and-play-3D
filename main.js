@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
-import { SVGLoader } from 'three/addons/loaders/SVGLoader.js';
+import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+import { RGBELoader } from 'three/addons/loaders/RGBELoader.js';
 
 const container = document.getElementById('scene-container');
 const splashOverlay = document.getElementById('splash');
@@ -33,6 +34,7 @@ const gridToggleButton = document.getElementById('gridToggle');
 const muteButton = document.getElementById('muteButton');
 const exportButton = document.getElementById('exportButton');
 const importButton = document.getElementById('importButton');
+const helpModal = document.getElementById('helpModal');
 const importInput = document.getElementById('importInput');
 const profileLabel = document.getElementById('currentProfile');
 const profileButtons = document.querySelectorAll('.profile-card');
@@ -45,6 +47,19 @@ const designButton = document.getElementById('designButton');
 const designModal = document.getElementById('designModal');
 const resetPaletteButton = document.getElementById('resetPaletteButton');
 const swatchButtons = document.querySelectorAll('[data-color-swatch]');
+const undoButton = document.getElementById('undoButton');
+const redoButton = document.getElementById('redoButton');
+const saveButton = document.getElementById('saveButton');
+const loadButton = document.getElementById('loadButton');
+const photoModeButton = document.getElementById('photoModeButton');
+const kidsModeButton = document.getElementById('kidsModeButton');
+const helpButton = document.getElementById('helpButton');
+const randomizeButton = document.getElementById('randomizeButton');
+const btnRunner = document.getElementById('btnRunner');
+const onboardingOverlay = document.getElementById('onboarding');
+const onboardingNextButton = document.getElementById('onboardingNext');
+const dontShowAgainCheckbox = document.getElementById('dontShowAgain');
+const onboardingCards = document.querySelectorAll('.onboarding-card');
 const prefersReducedMotion = window.matchMedia
   ? window.matchMedia('(prefers-reduced-motion: reduce)').matches
   : false;
@@ -183,13 +198,20 @@ let baselineCustomColors = defaultCustomColors();
 let autosaveTimer = null;
 let activeModal = null;
 let ambientParticles = null;
+let catalog = [];
 let touchHintShown = false;
 
 const selectionRing = createSelectionRing();
 scene.add(selectionRing);
 selectionRing.visible = false;
 
+const decorGroup = new THREE.Group();
+const runnerGroup = new THREE.Group();
+runnerGroup.visible = false;
+scene.add(decorGroup, runnerGroup);
+
 const state = {
+  mode: 'decor',
   gameStarted: false,
   assetsReady: false,
   selectedItem: null,
@@ -233,94 +255,43 @@ const tutorial = createTutorial();
 
 buildRoom();
 setupLighting();
+setupEnvironment();
 setupGroundDecor();
 setupShelves();
 setupBoxes();
 setupDecorExtras();
-
-const itemsConfig = [
-  {
-    name: 'Retro Console',
-    url: 'assets/svg/console.svg',
-    scale: 0.018,
-    depth: 0.5,
-    boxIndex: 0,
-    dropHeight: 0.6,
-    tint: 0xff8fb1
-  },
-  {
-    name: 'Robot Toy',
-    url: 'assets/svg/robot.svg',
-    scale: 0.022,
-    depth: 0.55,
-    boxIndex: 0,
-    dropHeight: 0.65,
-    tint: 0x8fdcff
-  },
-  {
-    name: 'Story Books',
-    url: 'assets/svg/books.svg',
-    scale: 0.02,
-    depth: 0.45,
-    boxIndex: 1,
-    dropHeight: 0.55,
-    tint: 0xffd482
-  },
-  {
-    name: 'Mini Plant',
-    url: 'assets/svg/plant.svg',
-    scale: 0.024,
-    depth: 0.42,
-    boxIndex: 1,
-    dropHeight: 0.58,
-    tint: 0xb5f58b
-  },
-  {
-    name: 'Toy Rocket',
-    url: 'assets/svg/rocket.svg',
-    scale: 0.02,
-    depth: 0.55,
-    boxIndex: 2,
-    dropHeight: 0.62,
-    tint: 0xffa6a6
-  },
-  {
-    name: 'Board Game',
-    url: 'assets/svg/boardgame.svg',
-    scale: 0.018,
-    depth: 0.4,
-    boxIndex: 2,
-    dropHeight: 0.54,
-    tint: 0x9a8fff
-  }
-];
+setupRunnerScene();
 
 startButton.disabled = true;
 startButton.textContent = 'Loading assets...';
 
-loadAllItems(itemsConfig)
-  .then((loadedItems) => {
-    placeItemsInBoxes(loadedItems);
-    state.totalItems = loadedItems.length;
-    progressTotal.textContent = loadedItems.length.toString();
-    updateProgress();
-    state.assetsReady = true;
-    history.reset('initial');
-    baselineSnapshot = JSON.parse(JSON.stringify(captureSnapshot()));
-    baselineCustomColors = cloneCustomColors(state.customColors);
-    setActiveProfile(state.currentProfile);
-    syncAudioUi();
-    applyUiScale();
-    applyReducedMotionSettings();
-    syncSettingsUi();
-    syncSnapUi();
-    startButton.disabled = false;
-    startButton.textContent = 'Play';
+fetch('catalog.json')
+  .then((response) => response.json())
+  .then((catalogData) => {
+    catalog = catalogData;
+    loadCatalogItems(catalog).then((loadedItems) => {
+      placeItemsInBoxes(loadedItems);
+      state.totalItems = loadedItems.length;
+      progressTotal.textContent = loadedItems.length.toString();
+      updateProgress();
+      state.assetsReady = true;
+      history.reset();
+      baselineSnapshot = JSON.parse(JSON.stringify(captureSnapshot()));
+      baselineCustomColors = cloneCustomColors(state.customColors);
+      setActiveProfile(state.currentProfile);
+      syncAudioUi();
+      applyUiScale();
+      applyReducedMotionSettings();
+      syncSettingsUi();
+      syncSnapUi();
+      startButton.disabled = false;
+      startButton.textContent = 'Play';
+    });
   })
   .catch((error) => {
-    console.error(error);
+    console.error('Error loading catalog:', error);
     startButton.textContent = 'Reload to retry';
-    showToast('Failed to load assets. Check the console.', 4000);
+    showToast('Failed to load catalog. Check the console.', 4000);
   });
 
 renderer.setAnimationLoop(update);
@@ -344,6 +315,7 @@ startButton.addEventListener('click', () => {
   splashOverlay.classList.remove('visible');
   splashOverlay.classList.add('hidden');
   tutorial.restart();
+  handleOnboarding();
 });
 
 tutorialNext.addEventListener('click', () => {
@@ -351,8 +323,8 @@ tutorialNext.addEventListener('click', () => {
   tutorial.onOverlayAccepted();
 });
 
-rotateLeftBtn.addEventListener('click', () => rotateSelected(-1));
-rotateRightBtn.addEventListener('click', () => rotateSelected(1));
+rotateLeftBtn.addEventListener('click', (e) => rotateSelected(-1, e.shiftKey));
+rotateRightBtn.addEventListener('click', (e) => rotateSelected(1, e.shiftKey));
 
 snapToggle.addEventListener('change', () => {
   state.snapEnabled = snapToggle.checked;
@@ -489,6 +461,51 @@ modalCloseButtons.forEach((button) => {
 
 document.addEventListener('keydown', handleGlobalKeyDown);
 window.addEventListener('beforeunload', saveCurrentProfile);
+
+undoButton.addEventListener('click', () => history.undo());
+redoButton.addEventListener('click', () => history.redo());
+
+btnRunner.onclick = () => enterRunner();
+
+document.addEventListener('keydown', (e) => {
+  if (state.mode !== 'runner') return;
+  if (e.code === 'ArrowLeft' || e.code === 'KeyA') Runner.lane = Math.max(-1, Runner.lane - 1);
+  if (e.code === 'ArrowRight' || e.code === 'KeyD') Runner.lane = Math.min(1, Runner.lane + 1);
+  if (e.code === 'Space' && Runner.onGround) { Runner.vy = 12; Runner.onGround = false; }
+  if (e.code === 'KeyP') toggleRunnerPause();
+});
+
+photoModeButton.addEventListener('click', () => {
+  document.body.classList.toggle('photo-mode');
+  showToast('Photo mode ' + (document.body.classList.contains('photo-mode') ? 'enabled' : 'disabled'), 1500);
+});
+
+kidsModeButton.addEventListener('click', () => {
+  document.body.classList.toggle('kids-mode');
+  const isKidsMode = document.body.classList.contains('kids-mode');
+  state.snapEnabled = isKidsMode;
+  snapToggle.checked = isKidsMode;
+  showToast('Kids mode ' + (isKidsMode ? 'enabled' : 'disabled'), 1500);
+
+  draggableItems.forEach(item => {
+    const catalogItem = catalog.find(c => c.id === item.userData.catalogId);
+    if (isKidsMode) {
+      item.visible = catalogItem && catalogItem.category === 'Decor';
+    } else {
+      item.visible = true;
+    }
+  });
+});
+
+randomizeButton.addEventListener('click', () => {
+  randomizeCozy();
+  showToast('Cozy room randomized!', 1500);
+});
+
+helpButton.addEventListener('click', () => {
+  openModal(helpModal);
+});
+
 window.__gameDebug = {
   state,
   tutorial,
@@ -520,6 +537,7 @@ function buildRoom() {
   const floor = new THREE.Mesh(new THREE.PlaneGeometry(20, 20), floorMaterial);
   floor.rotation.x = -Math.PI / 2;
   floor.receiveShadow = true;
+  floor.userData.placeableSurface = true;
   roomGroup.add(floor);
   roomElements.floor = floor;
 
@@ -532,12 +550,14 @@ function buildRoom() {
   const backWall = new THREE.Mesh(new THREE.PlaneGeometry(20, 9), wallMaterial);
   backWall.position.set(0, 4.5, -10);
   backWall.receiveShadow = true;
+  backWall.userData.placeableSurface = true;
   roomGroup.add(backWall);
   roomElements.walls.push(backWall);
 
   const leftWall = new THREE.Mesh(new THREE.PlaneGeometry(20, 9), wallMaterial);
   leftWall.position.set(-10, 4.5, 0);
   leftWall.rotation.y = Math.PI / 2;
+  leftWall.userData.placeableSurface = true;
   roomGroup.add(leftWall);
   roomElements.walls.push(leftWall);
 
@@ -546,6 +566,7 @@ function buildRoom() {
   rightWall.rotation.y = -Math.PI / 2;
   rightWall.material = wallMaterial.clone();
   rightWall.material.color.set(0xfff0f6);
+  rightWall.userData.placeableSurface = true;
   roomGroup.add(rightWall);
   roomElements.accentWall = rightWall;
 
@@ -568,7 +589,7 @@ function buildRoom() {
   roomGroup.add(baseboardRight);
   roomElements.baseboards.push(baseboardRight);
 
-  scene.add(roomGroup);
+  decorGroup.add(roomGroup);
 }
 
 function setupLighting() {
@@ -597,6 +618,16 @@ function setupLighting() {
   scene.add(fill);
 }
 
+function setupEnvironment() {
+  renderer.toneMapping = THREE.ACESFilmicToneMapping;
+  renderer.toneMappingExposure = 1.2;
+  new RGBELoader().load('assets/daylight.hdr', (texture) => {
+    texture.mapping = THREE.EquirectangularReflectionMapping;
+    scene.background = texture;
+    scene.environment = texture;
+  });
+}
+
 function setupGroundDecor() {
   const rugGeometry = new THREE.CircleGeometry(2.3, 48);
   const rugMaterial = new THREE.MeshStandardMaterial({
@@ -608,7 +639,7 @@ function setupGroundDecor() {
   rug.rotation.x = -Math.PI / 2;
   rug.position.set(-1.5, 0.01, -3.5);
   rug.receiveShadow = true;
-  scene.add(rug);
+  decorGroup.add(rug);
   roomElements.decor.rug = rug;
 
   const matGeometry = new THREE.RingGeometry(1.4, 1.8, 32);
@@ -620,7 +651,7 @@ function setupGroundDecor() {
   mat.rotation.x = -Math.PI / 2;
   mat.position.set(3.6, 0.011, -2.8);
   mat.receiveShadow = true;
-  scene.add(mat);
+  decorGroup.add(mat);
   roomElements.decor.mat = mat;
 }
 
@@ -649,8 +680,9 @@ function setupShelves() {
     const shelf = new THREE.Mesh(shelfGeo, shelfMaterial.clone());
     shelf.castShadow = true;
     shelf.receiveShadow = true;
+    shelf.userData.placeableSurface = true;
     shelf.position.copy(position);
-    scene.add(shelf);
+    decorGroup.add(shelf);
     shelves.push({
       mesh: shelf,
       width: size.width,
@@ -667,7 +699,7 @@ function setupShelves() {
         position.y - 0.45,
         position.z + size.depth / 2 - 0.1
       );
-      scene.add(bracket);
+      decorGroup.add(bracket);
     }
 
     const snapsPerShelf = Math.max(3, Math.round(size.width / 1.2));
@@ -700,7 +732,7 @@ function setupBoxes() {
     const box = createDecorBox(position, color);
     box.colorIndex = index;
     boxes.push(box);
-    scene.add(box.group);
+    decorGroup.add(box.group);
   });
 }
 
@@ -708,7 +740,7 @@ function setupDecorExtras() {
   ambientParticles = createAmbientParticles();
   const stringLights = createStringLights();
   roomElements.decor.lights = stringLights;
-  scene.add(stringLights);
+  decorGroup.add(stringLights);
 }
 
 function createAmbientParticles() {
@@ -731,7 +763,7 @@ function createAmbientParticles() {
   });
   const points = new THREE.Points(geometry, material);
   points.position.y = 0.4;
-  scene.add(points);
+  decorGroup.add(points);
   return points;
 }
 
@@ -843,7 +875,7 @@ function registerSnapPoint(position, kind) {
   indicator.position.copy(position);
   indicator.position.y -= kind === 'shelf' ? 0.08 : 0.55;
   indicator.visible = false;
-  scene.add(indicator);
+  decorGroup.add(indicator);
 
   snapTargets.push({
     id: snapIdCounter++,
@@ -909,17 +941,10 @@ function handlePointerMove(event) {
   setPointerFromEvent(event);
   raycaster.setFromCamera(pointer, camera);
 
-  if (raycaster.ray.intersectPlane(dragPlane, planeIntersect)) {
-    const desired = planeIntersect.sub(dragOffset);
-    constrainPosition(desired);
-    if (state.gridSnapEnabled) {
-      applyGridSnap(desired);
-    }
-    dragState.item.position.lerp(desired, 0.35);
-    dragState.item.userData.lastDragged = performance.now();
-    dragState.validPlacement = evaluatePlacement(dragState.item);
-    applyPlacementHighlight(dragState.item, dragState.validPlacement);
-  }
+  const { ok } = placePreview(pointer.x, pointer.y, camera, scene, dragState.item);
+  const collision = checkCollision(dragState.item);
+  dragState.validPlacement = ok && !collision;
+  applyPlacementHighlight(dragState.item, dragState.validPlacement);
 }
 
 function handlePointerUp() {
@@ -931,48 +956,39 @@ function handlePointerUp() {
   const item = dragState.item;
   const startPosition = dragState.startPosition.clone();
   const startRotation = dragState.startRotation;
-  const startSnapId = dragState.startSnapId;
 
   dragState.item = null;
   dragState.isDragging = false;
 
-  const placementValid = evaluatePlacement(item);
   clearPlacementHighlight(item);
 
-  if (!placementValid) {
-    restoreItemToStart(item, startPosition, startRotation, startSnapId);
-    updateSelection(item);
-    showToast('Try placing items fully on shelves or rugs.');
+  if (!dragState.validPlacement) {
+    item.position.copy(startPosition);
+    item.rotation.y = startRotation;
+    showToast('Try placing items on the floor, walls, or shelves.');
     return;
   }
 
-  let snapped = false;
-  if (state.snapEnabled) {
-    snapped = trySnapItem(item);
-  }
-  if (!snapped) {
-    if (state.gridSnapEnabled) {
-      applyGridSnap(item.position);
-    }
-    gentlyDrop(item);
-  } else {
-    tutorial.notify('itemSnapped');
-  }
-
   updateSelection(item);
-  if (!snapped) {
-    showToast('Items like to rest on shelves or the rug.');
-  }
   updateProgress();
 
-  const snapIdNow = item.userData.snapSlot ? item.userData.snapSlot.id : null;
   const moved =
     startPosition.distanceTo(item.position) > 0.01 ||
-    Math.abs(item.rotation.y - startRotation) > 0.01 ||
-    snapIdNow !== startSnapId;
+    Math.abs(item.rotation.y - startRotation) > 0.01;
 
   if (moved) {
-    commitHistory('move');
+    const endPosition = item.position.clone();
+    const endRotation = item.rotation.y;
+    history.do({
+      undo: () => {
+        item.position.copy(startPosition);
+        item.rotation.y = startRotation;
+      },
+      do: () => {
+        item.position.copy(endPosition);
+        item.rotation.y = endRotation;
+      }
+    });
   }
 }
 
@@ -983,8 +999,7 @@ function handleWheel(event) {
   if (event.altKey) {
     event.preventDefault();
     const direction = event.deltaY > 0 ? 1 : -1;
-    rotateSelected(direction, THREE.MathUtils.degToRad(5), { showFeedback: false, commit: false });
-    commitHistory('rotate-fine');
+    rotateSelected(direction, true);
   }
 }
 
@@ -1135,13 +1150,13 @@ function handleKeyDown(event) {
   }
 
   if (event.code === 'KeyQ') {
-    rotateSelected(-1);
+    rotateSelected(-1, event.shiftKey);
     event.preventDefault();
     return;
   }
 
   if (event.code === 'KeyE') {
-    rotateSelected(1);
+    rotateSelected(1, event.shiftKey);
     event.preventDefault();
     return;
   }
@@ -1247,71 +1262,51 @@ function deleteSelected() {
   item.visible = false;
   clearSelection();
   updateProgress();
-  commitHistory('delete');
+  playSound('delete');
   showToast('Item removed. Undo with Ctrl+Z.', 1600);
 }
 
-function rotateSelected(direction, angle = THREE.MathUtils.degToRad(15), options = {}) {
-  if (!state.selectedItem) {
+function rotateSelected(direction, isFine = false) {
+  const item = state.selectedItem;
+  if (!item) {
     return;
   }
-  const { showFeedback = true, commit = true } = options;
-  const rotationStep = angle * direction;
-  state.selectedItem.rotation.y += rotationStep;
-  if (commit) {
-    commitHistory('rotate');
-  }
-  if (showFeedback) {
-    showToast(direction < 0 ? 'Spun left' : 'Spun right', 1200);
-    tutorial.notify('itemRotated');
-  }
+  const startRotation = item.rotation.y;
+  const angle = isFine ? THREE.MathUtils.degToRad(1) : THREE.MathUtils.degToRad(15);
+  const newRotation = steppedDeg(startRotation + angle * direction, isFine ? 1 : 15);
+  item.rotation.y = newRotation;
+
+  history.do({
+    undo: () => {
+      item.rotation.y = startRotation;
+    },
+    do: () => {
+      item.rotation.y = newRotation;
+    }
+  });
+
+  showToast(direction < 0 ? 'Spun left' : 'Spun right', 1200);
+  tutorial.notify('itemRotated');
+  playSound('rotate');
 }
 
-function gentlyDrop(item) {
-  item.position.y = Math.max(0.5, item.position.y);
-}
-
-function constrainPosition(position) {
-  position.x = THREE.MathUtils.clamp(position.x, roomBounds.minX, roomBounds.maxX);
-  position.y = THREE.MathUtils.clamp(position.y, 0.4, 4.8);
-  position.z = THREE.MathUtils.clamp(position.z, roomBounds.minZ, roomBounds.maxZ);
-}
-
-function applyGridSnap(position) {
-  position.x = Math.round(position.x / GRID_SIZE) * GRID_SIZE;
-  position.z = Math.round(position.z / GRID_SIZE) * GRID_SIZE;
-}
-
-function evaluatePlacement(item) {
-  const radius = item.userData.boundingRadius || 0.5;
-  const withinBounds =
-    item.position.x - radius >= roomBounds.minX &&
-    item.position.x + radius <= roomBounds.maxX &&
-    item.position.z - radius >= roomBounds.minZ &&
-    item.position.z + radius <= roomBounds.maxZ;
-  if (!withinBounds) {
-    return false;
-  }
-
-  // Floor placements are valid if near ground.
-  if (item.position.y <= 0.6) {
-    return true;
-  }
-
-  let onShelf = false;
-  for (const shelf of shelves) {
-    const verticalAlignment = Math.abs(item.position.y - shelf.topY) <= 0.55;
-    const depthAlignment = Math.abs(item.position.z - shelf.center.z) <= shelf.depth / 2 + radius * 0.6;
-    if (verticalAlignment && depthAlignment) {
-      onShelf = true;
-      const horizontalClearance = shelf.width / 2 - radius * 0.8;
-      if (Math.abs(item.position.x - shelf.center.x) > horizontalClearance) {
-        return false;
-      }
+function checkCollision(item) {
+  const itemBox = new THREE.Box3().setFromObject(item);
+  for (const otherItem of draggableItems) {
+    if (item === otherItem) continue;
+    const otherBox = new THREE.Box3().setFromObject(otherItem);
+    if (itemBox.intersectsBox(otherBox)) {
+      return true;
     }
   }
+  return false;
+}
 
-  return onShelf;
+function findSnapById(id) {
+  if (id === null || id === undefined) {
+    return null;
+  }
+  return snapTargets.find((target) => target.id === id) || null;
 }
 
 function applyPlacementHighlight(item, isValid) {
@@ -1337,69 +1332,6 @@ function clearPlacementHighlight(item) {
     child.material.emissiveIntensity = 0;
   });
   selectionRing.material.color.setHex(0xff7ce2);
-}
-
-function restoreItemToStart(item, position, rotation, snapId) {
-  if (item.userData.snapSlot) {
-    item.userData.snapSlot.occupiedBy = null;
-    item.userData.snapSlot = null;
-  }
-  item.position.copy(position);
-  item.rotation.y = rotation;
-  if (snapId !== null && snapId !== undefined) {
-    const slot = findSnapById(snapId);
-    if (slot) {
-      slot.occupiedBy = item;
-      item.userData.snapSlot = slot;
-      item.position.copy(slot.position);
-      if (slot.kind === 'floor') {
-        item.position.y = 0.58;
-      }
-    }
-  }
-}
-
-function findSnapById(id) {
-  if (id === null || id === undefined) {
-    return null;
-  }
-  return snapTargets.find((target) => target.id === id) || null;
-}
-
-function commitHistory(label) {
-  if (applyingHistory || !state.assetsReady) {
-    return;
-  }
-  history.push(label);
-  scheduleAutosave();
-}
-
-function trySnapItem(item) {
-  let bestTarget = null;
-  let bestDistance = Infinity;
-  for (const target of snapTargets) {
-    if (target.occupiedBy && target.occupiedBy !== item) {
-      continue;
-    }
-    const distance = target.position.distanceTo(item.position);
-    if (distance < target.radius && distance < bestDistance) {
-      bestDistance = distance;
-      bestTarget = target;
-    }
-  }
-
-  if (bestTarget) {
-    bestTarget.occupiedBy = item;
-    item.position.copy(bestTarget.position);
-    if (bestTarget.kind === 'floor') {
-      item.position.y = 0.58;
-    }
-    item.userData.snapSlot = bestTarget;
-    playSound('place');
-    showToast('Snapped into place!', 1300);
-    return true;
-  }
-  return false;
 }
 
 function updateProgress() {
@@ -1492,44 +1424,78 @@ function showToast(message, duration = 2000) {
   }, duration);
 }
 
+function snap(v, step = 0.25) {
+  return Math.round(v / step) * step;
+}
+
+function steppedDeg(rad, stepDeg = 15) {
+  const deg = THREE.MathUtils.radToDeg(rad);
+  return THREE.MathUtils.degToRad(Math.round(deg / stepDeg) * stepDeg);
+}
+
+function placePreview(screenX, screenY, camera, scene, previewMesh) {
+  raycaster.setFromCamera({ x: screenX, y: screenY }, camera);
+  const hits = raycaster.intersectObjects(scene.children, true);
+  const hit = hits.find((h) => h.object.userData.placeableSurface);
+  if (!hit) return { ok: false };
+  const n = hit.face?.normal?.clone()?.transformDirection(hit.object.matrixWorld) || new THREE.Vector3(0, 1, 0);
+  const p = hit.point.clone();
+
+  // Align to floor vs wall
+  const isWall = Math.abs(n.y) < 0.5;
+  if (isWall) {
+    // Push slightly off wall and align Y up, Z forward
+    const out = n.clone().multiplyScalar(0.01);
+    previewMesh.position.copy(p.add(out));
+    const y = new THREE.Vector3(0, 1, 0);
+    const z = n.clone().negate();
+    const x = new THREE.Vector3().crossVectors(y, z).normalize();
+    const m = new THREE.Matrix4().makeBasis(x, y, z);
+    previewMesh.quaternion.setFromRotationMatrix(m);
+  } else {
+    previewMesh.position.set(snap(p.x), snap(p.y), snap(p.z));
+    // keep current yaw; optionally step it
+    const e = new THREE.Euler().setFromQuaternion(previewMesh.quaternion, 'YXZ');
+    e.y = steppedDeg(e.y, 15);
+    previewMesh.quaternion.setFromEuler(e);
+  }
+  return { ok: true };
+}
+
 function createHistoryManager() {
-  const entries = [];
-  let index = -1;
+  const past = [];
+  const future = [];
 
   return {
-    push(label) {
-      if (draggableItems.length === 0) {
-        return;
-      }
-      const snapshot = {
-        label,
-        timestamp: performance.now(),
-        items: captureSnapshot()
-      };
-      entries.splice(index + 1);
-      entries.push(snapshot);
-      index = entries.length - 1;
+    do(command) {
+      command.do();
+      past.push(command);
+      future.length = 0;
+      scheduleAutosave();
     },
     undo() {
-      if (index <= 0) {
-        return false;
+      const command = past.pop();
+      if (command) {
+        command.undo();
+        future.push(command);
+        scheduleAutosave();
+        return true;
       }
-      index -= 1;
-      applySnapshot(entries[index].items);
-      return true;
+      return false;
     },
     redo() {
-      if (index >= entries.length - 1) {
-        return false;
+      const command = future.pop();
+      if (command) {
+        command.do();
+        past.push(command);
+        scheduleAutosave();
+        return true;
       }
-      index += 1;
-      applySnapshot(entries[index].items);
-      return true;
+      return false;
     },
-    reset(label) {
-      entries.length = 0;
-      index = -1;
-      this.push(label);
+    reset() {
+      past.length = 0;
+      future.length = 0;
     }
   };
 }
@@ -1608,6 +1574,7 @@ function saveProfile(profileId) {
   }
   try {
     const payload = {
+      schemaVersion: 1,
       version: STORAGE_VERSION,
       profile: profileId,
       snapshot: captureSnapshot(),
@@ -1658,7 +1625,7 @@ function loadProfile(profileId) {
   syncAudioUi();
   syncSettingsUi();
   syncDesignUi();
-  history.reset(`profile:${profileId}`);
+  history.reset();
 }
 
 function exportCurrentProfile() {
@@ -1666,6 +1633,15 @@ function exportCurrentProfile() {
     showToast('Load the scene before exporting.', 1400);
     return;
   }
+  const runnerBestByProfile = {};
+  profilesConfig.forEach(p => {
+    const key = `family.runner.best.${p.id}`;
+    const data = localStorage.getItem(key);
+    if (data) {
+      runnerBestByProfile[p.name] = JSON.parse(data);
+    }
+  });
+
   const payload = {
     version: STORAGE_VERSION,
     profile: state.currentProfile,
@@ -1677,7 +1653,9 @@ function exportCurrentProfile() {
     reducedMotion: state.reducedMotion,
     theme: state.currentTheme,
     customColors: cloneCustomColors(state.customColors),
-    snapshot: captureSnapshot()
+    snapshot: captureSnapshot(),
+    runnerBestByProfile,
+    milestonesV2: [...getMilestonesV2()]
   };
   const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });
   const url = URL.createObjectURL(blob);
@@ -1721,7 +1699,21 @@ function handleImportFile(event) {
       syncAudioUi();
       syncSettingsUi();
       syncDesignUi();
-      history.reset(`import:${state.currentProfile}`);
+      history.reset();
+
+      if (payload.runnerBestByProfile) {
+        Object.entries(payload.runnerBestByProfile).forEach(([profileName, best]) => {
+          const profile = profilesConfig.find(p => p.name === profileName);
+          if (profile) {
+            const key = `family.runner.best.${profile.id}`;
+            localStorage.setItem(key, JSON.stringify(best));
+          }
+        });
+      }
+      if (payload.milestonesV2) {
+        localStorage.setItem(MILESTONE_KEY, JSON.stringify(payload.milestonesV2));
+      }
+
       saveProfile(state.currentProfile);
       showToast('Import complete!', 1600);
     } catch (error) {
@@ -1747,6 +1739,10 @@ function readProfile(profileId) {
       return null;
     }
     const data = JSON.parse(raw);
+    if (data.schemaVersion !== 1) {
+      console.warn('Unknown save schema version:', data.schemaVersion);
+      return null;
+    }
     if (data.version !== STORAGE_VERSION) {
       return null;
     }
@@ -1787,7 +1783,7 @@ function resetCurrentProfile() {
   state.snapEnabled = true;
   syncSnapUi();
   syncDesignUi();
-  history.reset(`reset:${state.currentProfile}`);
+  history.reset();
   saveProfile(state.currentProfile);
   showToast('Room reset. Fresh boxes await!', 1800);
 }
@@ -2073,6 +2069,66 @@ function handleGlobalKeyDown(event) {
   }
 }
 
+let currentOnboardingStep = 1;
+
+function handleOnboarding() {
+  const onboardingSeen = localStorage.getItem('onboardingSeen');
+  if (onboardingSeen) {
+    return;
+  }
+
+  onboardingOverlay.classList.remove('hidden');
+  updateOnboardingStep();
+
+  onboardingNextButton.addEventListener('click', () => {
+    currentOnboardingStep++;
+    if (currentOnboardingStep > 3) {
+      onboardingOverlay.classList.add('hidden');
+      if (dontShowAgainCheckbox.checked) {
+        localStorage.setItem('onboardingSeen', 'true');
+      }
+    } else {
+      updateOnboardingStep();
+    }
+  });
+}
+
+function updateOnboardingStep() {
+  onboardingCards.forEach(card => {
+    if (parseInt(card.dataset.step) === currentOnboardingStep) {
+      card.classList.add('active');
+    } else {
+      card.classList.remove('active');
+    }
+  });
+}
+
+function randomizeCozy() {
+    // Clear existing items
+    draggableItems.forEach(item => scene.remove(item));
+    draggableItems.length = 0;
+
+    fetch('catalog.json')
+        .then(response => response.json())
+        .then(catalog => {
+            const randomItems = [];
+            for (let i = 0; i < 5; i++) {
+                randomItems.push(catalog[Math.floor(Math.random() * catalog.length)]);
+            }
+            return loadCatalogItems(randomItems);
+        })
+        .then(loadedItems => {
+            loadedItems.forEach(({ group, config }) => {
+                group.visible = true;
+                const shelf = shelves[Math.floor(Math.random() * shelves.length)];
+                const x = shelf.center.x + (Math.random() - 0.5) * shelf.width;
+                const z = shelf.center.z + (Math.random() - 0.5) * shelf.depth;
+                group.position.set(x, shelf.topY, z);
+            });
+            updateProgress();
+        });
+}
+
 function createTutorial() {
   const steps = [
     {
@@ -2177,14 +2233,14 @@ function createTutorial() {
   };
 }
 
-async function loadAllItems(configs) {
-  const loader = new SVGLoader();
-  const promises = configs.map((config) => {
+async function loadCatalogItems(catalog) {
+  const loader = new GLTFLoader();
+  const promises = catalog.map((config) => {
     return new Promise((resolve, reject) => {
       loader.load(
-        config.url,
-        (data) => {
-          const group = createItemFromSvg(data, config);
+        config.file,
+        (gltf) => {
+          const group = createItemFromGltf(gltf, config);
           resolve({ group, config });
         },
         undefined,
@@ -2195,9 +2251,9 @@ async function loadAllItems(configs) {
   return Promise.all(promises);
 }
 
-function createItemFromSvg(data, config) {
+function createItemFromGltf(gltf, config) {
   const itemId = `item-${itemIdCounter++}`;
-  const group = new THREE.Group();
+  const group = gltf.scene;
   group.userData = {
     name: config.name,
     isDraggable: true,
@@ -2205,50 +2261,20 @@ function createItemFromSvg(data, config) {
     isPacked: true,
     dropHeight: config.dropHeight || 0.6,
     boundingRadius: 1,
-    id: itemId
+    id: itemId,
+    catalogId: config.id
   };
   group.name = config.name || itemId;
 
-  const paths = data.paths;
-  const depth = config.depth ?? 0.3;
-  const extrudeSettings = {
-    depth,
-    bevelEnabled: true,
-    bevelThickness: depth * 0.12,
-    bevelSize: depth * 0.18,
-    bevelSegments: 2,
-    steps: 1
-  };
-
-  paths.forEach((path) => {
-    if (path.userData.style.fill === undefined || path.userData.style.fill === 'none') {
-      return;
+  group.traverse((child) => {
+    if (child.isMesh) {
+      child.castShadow = true;
+      child.receiveShadow = true;
     }
-    const shapes = path.toShapes(true);
-    shapes.forEach((shape) => {
-      const geometry = new THREE.ExtrudeGeometry(shape, extrudeSettings);
-      geometry.center();
-      const fillColor = path.color !== undefined ? path.color : config.tint || 0xffffff;
-      const material = new THREE.MeshToonMaterial({ color: fillColor });
-      const mesh = new THREE.Mesh(geometry, material);
-      mesh.castShadow = true;
-      mesh.receiveShadow = true;
-      mesh.scale.y *= -1;
-      group.add(mesh);
-    });
   });
 
-  if (group.children.length === 0) {
-    const spriteMaterial = new THREE.SpriteMaterial({ color: config.tint || 0xffffff });
-    const sprite = new THREE.Sprite(spriteMaterial);
-    sprite.center.set(0.5, 0.5);
-    sprite.scale.set(80, 80, 1);
-    group.add(sprite);
-  }
-
-  const scale = config.scale || 0.02;
+  const scale = config.scale || 1.0;
   group.scale.set(scale, scale, scale);
-  group.rotation.x = Math.PI;
   group.userData.isDraggable = true;
   draggableItems.push(group);
 
@@ -2259,7 +2285,7 @@ function createItemFromSvg(data, config) {
   group.userData.boundingHeight = size.y;
 
   group.visible = false;
-  scene.add(group);
+  decorGroup.add(group);
   return group;
 }
 
@@ -2297,6 +2323,8 @@ function createAudioManager() {
     }
     buffers.set('unbox', buildBuffer(520, 0.32, 2.2));
     buffers.set('place', buildBuffer(820, 0.18, 3.1));
+    buffers.set('delete', buildBuffer(440, 0.2, 2.5));
+    buffers.set('rotate', buildBuffer(1200, 0.1, 4.0));
   }
 
   function buildBuffer(frequency, duration, decay) {
@@ -2338,12 +2366,167 @@ function createAudioManager() {
       unlocked = true;
     },
     play,
-    setMuted() {}
+    setMuted(muted) {
+      state.audioMuted = muted;
+    }
   };
 }
 
 function playSound(name) {
   audio.play(name);
+}
+
+const MILESTONE_KEY = 'family.milestones.v2';
+const KNOWN_MILESTONES = ['runner_30s', 'runner_3stars', 'runner_best_update'];
+
+function getMilestonesV2() {
+  try {
+    const data = localStorage.getItem(MILESTONE_KEY);
+    return new Set(data ? JSON.parse(data) : []);
+  } catch (e) {
+    return new Set();
+  }
+}
+
+function isDone(id) {
+  return getMilestonesV2().has(id);
+}
+
+function awardMilestone(id) {
+  const milestones = getMilestonesV2();
+  if (!milestones.has(id)) {
+    milestones.add(id);
+    localStorage.setItem(MILESTONE_KEY, JSON.stringify([...milestones]));
+    window.dispatchEvent(new CustomEvent('milestone', { detail: { id } }));
+  }
+}
+
+function milestoneProgress() {
+  const completed = getMilestonesV2().size;
+  return KNOWN_MILESTONES.length > 0 ? completed / KNOWN_MILESTONES.length : 0;
+}
+
+const Runner = {
+  running: false,
+  t: 0,
+  speed: 6,
+  stars: 0,
+  lane: 0,
+  y: 0,
+  vy: 0,
+  gravity: -32,
+  onGround: true,
+  best: { seconds: 0, stars: 0 },
+  lastSpawn: 0,
+  obstacles: [],
+  collectibles: [],
+  enter() { loadBestForActiveProfile(); this.reset(); state.mode = 'runner'; showRunnerUI(true); },
+  reset() { this.t = 0; this.speed = 6; this.stars = 0; this.lane = 0; this.y = 0; this.vy = 0; this.onGround = true; this.lastSpawn = 0; this.obstacles.forEach(o => runnerGroup.remove(o)); this.collectibles.forEach(c => runnerGroup.remove(c)); this.obstacles = []; this.collectibles = []; },
+  exit() { state.mode = 'decor'; showRunnerUI(false); },
+  update(dt) {
+    if (!this.running) return;
+    this.t += dt; this.speed = Math.min(14, 6 + 0.02 * this.t);
+    if (this.t - this.lastSpawn > Math.random() * 0.5 + 0.9) { spawnEntity(); this.lastSpawn = this.t; }
+    // vertical
+    this.vy += this.gravity * dt; this.y = Math.max(0, this.y + this.vy * dt);
+    if (this.y === 0) this.onGround = true;
+
+    // placeholder for move world back
+    this.obstacles.forEach(o => o.position.z += this.speed * dt);
+    this.collectibles.forEach(c => c.position.z += this.speed * dt);
+
+    updateRunnerHUD();
+    if (this.t >= 30 && !isDone('runner_30s')) awardMilestone('runner_30s');
+    if (this.stars >= 3 && !isDone('runner_3stars')) awardMilestone('runner_3stars');
+  },
+  endRun() {
+    let improved = false;
+    if (this.t > this.best.seconds) { this.best.seconds = this.t; improved = true; }
+    if (this.stars > this.best.stars) { this.best.stars = this.stars; improved = true; }
+    saveBestForActiveProfile(this.best);
+    if (improved && !isDone('runner_best_update')) awardMilestone('runner_best_update');
+    showRunnerFinish(this.t, this.stars, this.best);
+    this.running = false;
+  }
+};
+
+function enterRunner() {
+  decorGroup.visible = false;
+  runnerGroup.visible = true;
+  Runner.enter();
+}
+
+function backToDecorator() {
+  decorGroup.visible = true;
+  runnerGroup.visible = false;
+  Runner.exit();
+}
+
+function showRunnerUI(show) {
+  document.getElementById('runnerHud').style.display = show ? 'flex' : 'none';
+}
+
+function updateRunnerHUD() {
+  document.getElementById('runnerTime').textContent = Runner.t.toFixed(1) + 's';
+  document.getElementById('runnerStars').textContent = '★ ' + Runner.stars;
+  document.getElementById('runnerBest').textContent = `Best: ${Runner.best.seconds.toFixed(1)}s / ★${Runner.best.stars}`;
+}
+
+function toggleRunnerPause() {
+  Runner.running = !Runner.running;
+  document.getElementById('runnerPause').style.display = Runner.running ? 'none' : 'grid';
+}
+
+function showRunnerFinish(t, stars, best) {
+  document.getElementById('runnerFinish').style.display = 'grid';
+  document.getElementById('runnerSummaryText').textContent = `Time: ${t.toFixed(1)}s, Stars: ${stars}`;
+}
+
+function loadBestForActiveProfile() {
+  const slot = state.currentProfile;
+  const key = `family.runner.best.${slot}`;
+  try {
+    const data = localStorage.getItem(key);
+    if (data) {
+      Runner.best = JSON.parse(data);
+    } else {
+      Runner.best = { seconds: 0, stars: 0 };
+    }
+  } catch (e) {
+    Runner.best = { seconds: 0, stars: 0 };
+  }
+}
+
+function saveBestForActiveProfile(best) {
+  const slot = state.currentProfile;
+  const key = `family.runner.best.${slot}`;
+  localStorage.setItem(key, JSON.stringify(best));
+}
+
+function spawnEntity() {
+  const isObstacle = Math.random() > 0.5;
+  const lane = Math.floor(Math.random() * 3) - 1;
+  const geometry = isObstacle ? new THREE.BoxGeometry(1, 1, 1) : new THREE.SphereGeometry(0.5, 16, 16);
+  const material = new THREE.MeshStandardMaterial({ color: isObstacle ? 0xff0000 : 0xffff00 });
+  const mesh = new THREE.Mesh(geometry, material);
+  mesh.position.set(lane * 1.6, 0.5, -20);
+  runnerGroup.add(mesh);
+  if (isObstacle) {
+    Runner.obstacles.push(mesh);
+  } else {
+    Runner.collectibles.push(mesh);
+  }
+}
+
+function setupRunnerScene() {
+  const ground = new THREE.Mesh(new THREE.PlaneGeometry(20, 200), new THREE.MeshStandardMaterial({ color: 0xcccccc }));
+  ground.rotation.x = -Math.PI / 2;
+  runnerGroup.add(ground);
+
+  const player = new THREE.Mesh(new THREE.BoxGeometry(1, 1, 1), new THREE.MeshStandardMaterial({ color: 0x00ff00 }));
+  player.position.y = 0.5;
+  runnerGroup.add(player);
+  Runner.player = player;
 }
 
 function update() {
@@ -2352,12 +2535,16 @@ function update() {
   renderer.info.reset();
   controls.update();
 
-  updateBoxes(delta, elapsedTime);
-  updateSnapHighlights(elapsedTime);
-  animateSelectionRing(delta, elapsedTime);
-  if (ambientParticles) {
-    const swirlSpeed = state.reducedMotion ? 0.03 : 0.09;
-    ambientParticles.rotation.y += delta * swirlSpeed;
+  if (state.mode === 'runner') {
+    Runner.update(delta);
+  } else {
+    updateBoxes(delta, elapsedTime);
+    updateSnapHighlights(elapsedTime);
+    animateSelectionRing(delta, elapsedTime);
+    if (ambientParticles) {
+      const swirlSpeed = state.reducedMotion ? 0.03 : 0.09;
+      ambientParticles.rotation.y += delta * swirlSpeed;
+    }
   }
 
   const ringOpacity = state.reducedMotion ? 0.55 : 0.5 + Math.sin(elapsedTime * 4) * 0.1;
@@ -2365,4 +2552,14 @@ function update() {
 
   renderer.render(scene, camera);
   updateDiagnostics(delta);
+}
+
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('/sw.js').then(registration => {
+      console.log('SW registered: ', registration);
+    }).catch(registrationError => {
+      console.log('SW registration failed: ', registrationError);
+    });
+  });
 }

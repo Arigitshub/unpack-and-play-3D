@@ -3,6 +3,9 @@
   "private": true,
   "scripts": {
     "start": "serve -l 5173 .",
+    "build": "node tools/build.js",
+    "build:zip": "node tools/build.js --zip",
+    "serve": "npx http-server -p 8080 .",
     "lint": "eslint . --ext .js,.ts,.jsx,.tsx --max-warnings=0",
     "format": "prettier -w .",
     "test": "vitest run",
@@ -12,6 +15,7 @@
   },
   "devDependencies": {
     "@playwright/test": "^1.48.0",
+    "archiver": "^7.0.1",
     "axe-core": "^4.9.0",
     "eslint": "^8.57.0",
     "eslint-config-standard": "^17.1.0",
