@@ -26,7 +26,7 @@ function printProgress(progress) {
 }
 
 async function main() {
-  console.log('Starting build...');
+  // console.log('Starting build...');
   printProgress(0);
 
   // Simulate scanning repo
@@ -55,9 +55,9 @@ async function main() {
     });
 
     output.on('close', () => {
-      console.log(`\nZip archive created: ${ZIP_PATH} (${(archive.pointer() / 1024).toFixed(2)} KB)`);
+      // console.log(`\nZip archive created: ${ZIP_PATH} (${(archive.pointer() / 1024).toFixed(2)} KB)`);
       printProgress(1);
-      console.log('\nBuild complete!');
+      // console.log('\nBuild complete!');
     });
 
     archive.pipe(output);
@@ -69,7 +69,7 @@ async function main() {
     archive.finalize();
   } else {
     printProgress(1);
-    console.log('\nBuild complete!');
+    // console.log('\nBuild complete!');
   }
 }
 

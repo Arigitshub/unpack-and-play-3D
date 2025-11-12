@@ -51,14 +51,14 @@ function startServer() {
   const page = await context.newPage();
   await page.goto('http://localhost:5173', { waitUntil: 'domcontentloaded' });
   await page.waitForTimeout(3000);
-  const diagnostics = await page.evaluate(() => ({
-    assetsReady: window.__gameDebug?.state.assetsReady,
-    totalItems: window.__gameDebug?.state.totalItems,
-    startDisabled: document.getElementById('startButton')?.disabled,
-    startText: document.getElementById('startButton')?.textContent,
-    toastText: document.getElementById('toast')?.textContent
-  }));
-  console.log(diagnostics);
+  // const diagnostics = await page.evaluate(() => ({
+  //   assetsReady: window.__gameDebug?.state.assetsReady,
+  //   totalItems: window.__gameDebug?.state.totalItems,
+  //   startDisabled: document.getElementById('startButton')?.disabled,
+  //   startText: document.getElementById('startButton')?.textContent,
+  //   toastText: document.getElementById('toast')?.textContent
+  // }));
+  // console.log(diagnostics);
   await browser.close();
   server.kill('SIGTERM');
 })();

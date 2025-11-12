@@ -267,6 +267,8 @@ body[data-reduced-motion="true"] * {
 
 .modal-card {
   max-width: 520px;
+  max-height: 90vh;
+  overflow-y: auto;
 }
 
 .modal-subtitle {
