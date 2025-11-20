@@ -1,6 +1,11 @@
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { SVGLoader } from 'three/addons/loaders/SVGLoader.js';
+import { AudioManager } from './src/systems/Audio.js';
+import { HistoryManager } from './src/systems/History.js';
+import { TutorialSystem } from './src/systems/Tutorial.js';
+import { RunnerMode } from './src/modes/Runner.js';
 
 const container = document.getElementById('scene-container');
 const splashOverlay = document.getElementById('splash');
@@ -234,119 +239,14 @@ const toastState = {
 
 const diagnosticsState = {
   visible: false,
-  fps: 60,
-  lastUpdate: 0,
-  gpuString: null
-};
-
-const history = createHistoryManager();
-const audio = createAudioManager();
-
-const tutorial = createTutorial();
-
-buildRoom();
-setupLighting();
-setupGroundDecor();
-setupShelves();
-setupBoxes();
-setupDecorExtras();
-
-const Runner = {
-  running: false,
-  t: 0,
-  speed: 6,
-  stars: 0,
-  lane: 0,
-  y: 0,
-  vy: 0,
-  gravity: -32,
-  onGround: true,
-  best: { seconds: 0, stars: 0 },
-  lastSpawn: 0,
-  obstacles: [],
-  collectibles: [],
-  enter() { loadBestForActiveProfile(); this.reset(); state.mode = 'runner'; showRunnerUI(true); },
-  reset() { this.t = 0; this.speed = 6; this.stars = 0; this.lane = 0; this.y = 0; this.vy = 0; this.onGround = true; this.lastSpawn = 0; this.obstacles.forEach(o => runnerGroup.remove(o)); this.collectibles.forEach(c => runnerGroup.remove(c)); this.obstacles = []; this.collectibles = []; },
-  exit() { state.mode = 'decor'; showRunnerUI(false); },
-  update(dt) {
-    if (!this.running) return;
-    this.t += dt; this.speed = Math.min(14, 6 + 0.02 * this.t);
-    if (this.t - this.lastSpawn > Math.random() * 0.5 + 0.9) { spawnEntity(); this.lastSpawn = this.t; }
-    // vertical
-    this.vy += this.gravity * dt; this.y = Math.max(0, this.y + this.vy * dt);
-    if (this.y === 0) this.onGround = true;
-
-    // Sync player mesh
-    if (this.player) {
-      this.player.position.x = THREE.MathUtils.lerp(this.player.position.x, this.lane * 1.6, dt * 10);
-      this.player.position.y = 0.5 + this.y;
-    }
-
-    // Move world back
-    const removalThreshold = 5;
-    for (let i = this.obstacles.length - 1; i >= 0; i--) {
-      const o = this.obstacles[i];
-      o.position.z += this.speed * dt;
-
-      // Collision
-      if (Math.abs(o.position.z) < 0.8 && Math.abs(o.position.x - this.lane * 1.6) < 0.8 && this.y < 0.8) {
-        this.endRun();
-        return;
-      }
-
-      if (o.position.z > removalThreshold) {
-        runnerGroup.remove(o);
-        this.obstacles.splice(i, 1);
-      }
-    }
-
-    for (let i = this.collectibles.length - 1; i >= 0; i--) {
-      const c = this.collectibles[i];
-      c.position.z += this.speed * dt;
-      c.rotation.y += dt * 2;
-
-      // Collection
-      if (Math.abs(c.position.z) < 0.8 && Math.abs(c.position.x - this.lane * 1.6) < 0.8 && this.y < 0.8) {
-        this.stars += 1;
-        runnerGroup.remove(c);
-        this.collectibles.splice(i, 1);
-        // Optional: play sound
-        continue;
-      }
-
-      if (c.position.z > removalThreshold) {
-        runnerGroup.remove(c);
-        this.collectibles.splice(i, 1);
-      }
-    }
-
-    updateRunnerHUD();
-    if (this.t >= 30 && !isDone('runner_30s')) awardMilestone('runner_30s');
-    if (this.stars >= 3 && !isDone('runner_3stars')) awardMilestone('runner_3stars');
-  },
-  endRun() {
-    let improved = false;
-    if (this.t > this.best.seconds) { this.best.seconds = this.t; improved = true; }
-    if (this.stars > this.best.stars) { this.best.stars = this.stars; improved = true; }
-    saveBestForActiveProfile(this.best);
-    if (improved && !isDone('runner_best_update')) awardMilestone('runner_best_update');
-    showRunnerFinish(this.t, this.stars, this.best);
-    this.running = false;
-  }
-};
-
-setupRunnerScene();
-
-const itemsConfig = [
-  {
-    name: 'Retro Console',
-    url: 'assets/svg/console.svg',
-    scale: 0.018,
-    depth: 0.5,
-    boxIndex: 0,
-    dropHeight: 0.6,
-    tint: 0xff8fb1
-  },
+  name: 'Retro Console',
+  url: 'assets/svg/console.svg',
+  scale: 0.018,
+  depth: 0.5,
+  boxIndex: 0,
+  dropHeight: 0.6,
+  tint: 0xff8fb1
+},
   {
     name: 'Robot Toy',
     url: 'assets/svg/robot.svg',
@@ -599,7 +499,7 @@ window.__gameDebug = {
 undoButton.addEventListener('click', () => history.undo());
 redoButton.addEventListener('click', () => history.redo());
 
-btnRunner.onclick = () => enterRunner();
+btnRunner.onclick = () => Runner.enter();
 
 document.addEventListener('keydown', (e) => {
   if (state.mode !== 'runner') return;
@@ -1712,47 +1612,7 @@ function showToast(message, duration = 2000) {
   }, duration);
 }
 
-function createHistoryManager() {
-  const entries = [];
-  let index = -1;
-
-  return {
-    push(label) {
-      if (draggableItems.length === 0) {
-        return;
-      }
-      const snapshot = {
-        label,
-        timestamp: performance.now(),
-        items: captureSnapshot()
-      };
-      entries.splice(index + 1);
-      entries.push(snapshot);
-      index = entries.length - 1;
-    },
-    undo() {
-      if (index <= 0) {
-        return false;
-      }
-      index -= 1;
-      applySnapshot(entries[index].items);
-      return true;
-    },
-    redo() {
-      if (index >= entries.length - 1) {
-        return false;
-      }
-      index += 1;
-      applySnapshot(entries[index].items);
-      return true;
-    },
-    reset(label) {
-      entries.length = 0;
-      index = -1;
-      this.push(label);
-    }
-  };
-}
+// HistoryManager moved to src/systems/History.js
 
 function captureSnapshot() {
   return draggableItems.map((item) => ({
@@ -2291,109 +2151,7 @@ function handleGlobalKeyDown(event) {
   }
 }
 
-function createTutorial() {
-  const steps = [
-    {
-      id: 'welcome',
-      text: 'Welcome to Unpack & Play 3D! We\'ll help you decorate this cozy room.',
-      waitFor: null,
-      highlight: null
-    },
-    {
-      id: 'openBox',
-      text: 'Start by clicking the glowing box to open it up.',
-      waitFor: 'boxOpened',
-      highlight: 'box'
-    },
-    {
-      id: 'dragItem',
-      text: 'Drag an item out of the box and explore the room.',
-      waitFor: 'itemDragged',
-      highlight: null
-    },
-    {
-      id: 'snapItem',
-      text: 'Place the item on a glowing spot to snap it into place.',
-      waitFor: 'itemSnapped',
-      highlight: 'snap'
-    },
-    {
-      id: 'rotateItem',
-      text: 'Use Q/E keys or the rotate buttons to angle your items just right.',
-      waitFor: 'itemRotated',
-      highlight: 'rotate'
-    },
-    {
-      id: 'freePlay',
-      text: 'All set! Keep unpacking and make the room yours.',
-      waitFor: null,
-      highlight: null
-    }
-  ];
-
-  let index = -1;
-  let awaitingEvent = null;
-
-  function setHighlights(step) {
-    boxes.forEach((box) => {
-      box.highlight = step.highlight === 'box' && !box.hasOpened;
-    });
-    tutorial.highlightSnapTargets = step.highlight === 'snap';
-    const rotateHighlight = step.highlight === 'rotate';
-    rotateLeftBtn.classList.toggle('pulse', rotateHighlight);
-    rotateRightBtn.classList.toggle('pulse', rotateHighlight);
-  }
-
-  return {
-    highlightSnapTargets: false,
-    start() {
-      this.restart();
-    },
-    advance() {
-      index += 1;
-      if (index >= steps.length) {
-        tutorialOverlay.classList.add('hidden');
-        return;
-      }
-      const step = steps[index];
-      awaitingEvent = step.waitFor;
-      tutorialText.textContent = step.text;
-      tutorialOverlay.classList.remove('hidden');
-      tutorialOverlay.classList.add('visible');
-      setHighlights(step);
-      if (!awaitingEvent && step.id === 'freePlay') {
-        setTimeout(() => {
-          this.hideOverlay();
-        }, 2800);
-      }
-    },
-    hideOverlay() {
-      tutorialOverlay.classList.remove('visible');
-      tutorialOverlay.classList.add('hidden');
-    },
-    onOverlayAccepted() {
-      const step = steps[index];
-      if (!awaitingEvent) {
-        this.advance();
-      } else if (step.highlight === 'box') {
-        boxes.forEach((box) => {
-          box.highlight = !box.hasOpened;
-        });
-      }
-    },
-    notify(eventId) {
-      if (awaitingEvent && awaitingEvent === eventId) {
-        awaitingEvent = null;
-        this.advance();
-      }
-    },
-    restart() {
-      index = -1;
-      awaitingEvent = null;
-      this.advance();
-    }
-  };
-}
+// TutorialSystem moved to src/systems/Tutorial.js
 
 async function loadAllItems(configs) {
   const loader = new SVGLoader();
@@ -2495,74 +2253,7 @@ function placeItemsInBoxes(items) {
   });
 }
 
-function createAudioManager() {
-  const AudioContextClass = window.AudioContext || window.webkitAudioContext;
-  if (!AudioContextClass) {
-    return {
-      unlock() { },
-      play() { },
-      setMuted() { }
-    };
-  }
-
-  const context = new AudioContextClass();
-  let unlocked = false;
-  const buffers = new Map();
-
-  function ensureBuffers() {
-    if (buffers.size > 0) {
-      return;
-    }
-    buffers.set('unbox', buildBuffer(520, 0.32, 2.2));
-    buffers.set('place', buildBuffer(820, 0.18, 3.1));
-    buffers.set('delete', buildBuffer(440, 0.2, 2.5));
-    buffers.set('rotate', buildBuffer(1200, 0.1, 4.0));
-  }
-
-  function buildBuffer(frequency, duration, decay) {
-    const length = Math.floor(context.sampleRate * duration);
-    const buffer = context.createBuffer(1, length, context.sampleRate);
-    const channel = buffer.getChannelData(0);
-    for (let i = 0; i < length; i += 1) {
-      const t = i / context.sampleRate;
-      const envelope = Math.exp(-decay * t);
-      channel[i] = Math.sin(2 * Math.PI * frequency * t) * envelope;
-    }
-    return buffer;
-  }
-
-  function play(name) {
-    if (!unlocked || state.audioMuted) {
-      return;
-    }
-    ensureBuffers();
-    const buffer = buffers.get(name);
-    if (!buffer) {
-      return;
-    }
-    const source = context.createBufferSource();
-    source.buffer = buffer;
-    source.connect(context.destination);
-    source.start();
-  }
-
-  return {
-    unlock() {
-      if (unlocked) {
-        return;
-      }
-      ensureBuffers();
-      if (context.state === 'suspended') {
-        context.resume().catch(() => { });
-      }
-      unlocked = true;
-    },
-    play,
-    setMuted(muted) {
-      state.audioMuted = muted;
-    }
-  };
-}
+// AudioManager moved to src/systems/Audio.js
 
 function playSound(name) {
   audio.play(name);
@@ -2639,31 +2330,9 @@ function saveBestForActiveProfile(best) {
   localStorage.setItem(key, JSON.stringify(best));
 }
 
-function spawnEntity() {
-  const isObstacle = Math.random() > 0.5;
-  const lane = Math.floor(Math.random() * 3) - 1;
-  const geometry = isObstacle ? new THREE.BoxGeometry(1, 1, 1) : new THREE.SphereGeometry(0.5, 16, 16);
-  const material = new THREE.MeshStandardMaterial({ color: isObstacle ? 0xff0000 : 0xffff00 });
-  const mesh = new THREE.Mesh(geometry, material);
-  mesh.position.set(lane * 1.6, 0.5, -20);
-  runnerGroup.add(mesh);
-  if (isObstacle) {
-    Runner.obstacles.push(mesh);
-  } else {
-    Runner.collectibles.push(mesh);
-  }
-}
+// spawnEntity moved to Runner class
 
-function setupRunnerScene() {
-  const ground = new THREE.Mesh(new THREE.PlaneGeometry(20, 200), new THREE.MeshStandardMaterial({ color: 0xcccccc }));
-  ground.rotation.x = -Math.PI / 2;
-  runnerGroup.add(ground);
-
-  const player = new THREE.Mesh(new THREE.BoxGeometry(1, 1, 1), new THREE.MeshStandardMaterial({ color: 0x00ff00 }));
-  player.position.y = 0.5;
-  runnerGroup.add(player);
-  Runner.player = player;
-}
+// Runner logic moved to src/modes/Runner.js
 
 function randomizeCozy() {
   // Clear existing items
