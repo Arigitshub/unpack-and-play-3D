@@ -287,7 +287,7 @@ const Runner = {
     for (let i = this.obstacles.length - 1; i >= 0; i--) {
       const o = this.obstacles[i];
       o.position.z += this.speed * dt;
-      
+
       // Collision
       if (Math.abs(o.position.z) < 0.8 && Math.abs(o.position.x - this.lane * 1.6) < 0.8 && this.y < 0.8) {
         this.endRun();
@@ -1049,6 +1049,20 @@ function handlePointerDown(event) {
   }
 }
 
+function getSurfaceHeight(x, z) {
+  // Check shelves
+  for (const shelf of shelves) {
+    if (
+      Math.abs(x - shelf.center.x) < shelf.width / 2 + 0.2 &&
+      Math.abs(z - shelf.center.z) < shelf.depth / 2 + 0.2
+    ) {
+      return shelf.topY;
+    }
+  }
+  // Default to floor height (slightly above 0 to avoid z-fighting/clipping)
+  return 0.58;
+}
+
 function handlePointerMove(event) {
   if (!dragState.isDragging || !dragState.item) {
     return;
@@ -1056,13 +1070,57 @@ function handlePointerMove(event) {
   setPointerFromEvent(event);
   raycaster.setFromCamera(pointer, camera);
 
+  // Intersect with floor plane
   if (raycaster.ray.intersectPlane(dragPlane, planeIntersect)) {
     const desired = planeIntersect.sub(dragOffset);
-    constrainPosition(desired);
-    if (state.gridSnapEnabled) {
-      applyGridSnap(desired);
+
+    // 1. Magnetic Snap Check
+    let snapped = false;
+    if (state.snapEnabled) {
+      let bestDist = 1.2; // Snap threshold
+      let bestTarget = null;
+
+      for (const target of snapTargets) {
+        if (target.occupiedBy && target.occupiedBy !== dragState.item) continue;
+
+        // Calculate distance in XZ plane primarily, but check Y match
+        const dx = desired.x - target.position.x;
+        const dz = desired.z - target.position.z;
+        const dist = Math.sqrt(dx * dx + dz * dz);
+
+        if (dist < bestDist) {
+          // For shelf snaps, check if we are roughly at the right height or if the mouse is over the shelf
+          const surfaceY = getSurfaceHeight(desired.x, desired.z);
+          if (Math.abs(surfaceY - target.position.y) < 1.0) {
+            bestDist = dist;
+            bestTarget = target;
+          }
+        }
+      }
+
+      if (bestTarget) {
+        desired.copy(bestTarget.position);
+        if (bestTarget.kind === 'floor') desired.y = 0.58;
+        snapped = true;
+        // Visual feedback could go here (e.g. highlight target)
+      }
     }
-    dragState.item.position.lerp(desired, 0.35);
+
+    // 2. Surface Following (if not snapped)
+    if (!snapped) {
+      const surfaceY = getSurfaceHeight(desired.x, desired.z);
+      desired.y = surfaceY;
+
+      if (state.gridSnapEnabled) {
+        applyGridSnap(desired);
+      }
+
+      constrainPosition(desired);
+    }
+
+    // Smooth movement
+    dragState.item.position.lerp(desired, 0.45);
+
     dragState.item.userData.lastDragged = performance.now();
     const collision = checkCollision(dragState.item);
     dragState.validPlacement = evaluatePlacement(dragState.item) && !collision;
@@ -1347,11 +1405,13 @@ function beginDrag(item) {
   dragState.validPlacement = true;
   clearPlacementHighlight(item);
 
-  planeNormal.copy(camera.getWorldDirection(tempVec3)).normalize();
-  dragPlane.setFromNormalAndCoplanarPoint(planeNormal, item.position);
+  // Use a floor plane for consistent XZ movement
+  dragPlane.setComponents(0, 1, 0, 0); // Up-facing plane at y=0
 
   if (raycaster.ray.intersectPlane(dragPlane, planeIntersect)) {
     dragOffset.copy(planeIntersect).sub(item.position);
+    // We only care about XZ offset, Y is handled by surface logic
+    dragOffset.y = 0;
   } else {
     dragOffset.set(0, 0, 0);
   }
@@ -1362,7 +1422,7 @@ function beginDrag(item) {
   }
 
   updateSelection(item);
-  showToast('Drag an item anywhere. Scroll the mouse wheel to zoom.', 2000);
+  showToast('Drag an item. It will snap to shelves and rugs!', 2000);
   tutorial.notify('itemDragged');
 }
 
@@ -2439,9 +2499,9 @@ function createAudioManager() {
   const AudioContextClass = window.AudioContext || window.webkitAudioContext;
   if (!AudioContextClass) {
     return {
-      unlock() {},
-      play() {},
-      setMuted() {}
+      unlock() { },
+      play() { },
+      setMuted() { }
     };
   }
 
@@ -2493,7 +2553,7 @@ function createAudioManager() {
       }
       ensureBuffers();
       if (context.state === 'suspended') {
-        context.resume().catch(() => {});
+        context.resume().catch(() => { });
       }
       unlocked = true;
     },
