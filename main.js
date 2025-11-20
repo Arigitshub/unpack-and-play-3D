@@ -276,9 +276,49 @@ const Runner = {
     this.vy += this.gravity * dt; this.y = Math.max(0, this.y + this.vy * dt);
     if (this.y === 0) this.onGround = true;
 
-    // placeholder for move world back
-    this.obstacles.forEach(o => o.position.z += this.speed * dt);
-    this.collectibles.forEach(c => c.position.z += this.speed * dt);
+    // Sync player mesh
+    if (this.player) {
+      this.player.position.x = THREE.MathUtils.lerp(this.player.position.x, this.lane * 1.6, dt * 10);
+      this.player.position.y = 0.5 + this.y;
+    }
+
+    // Move world back
+    const removalThreshold = 5;
+    for (let i = this.obstacles.length - 1; i >= 0; i--) {
+      const o = this.obstacles[i];
+      o.position.z += this.speed * dt;
+      
+      // Collision
+      if (Math.abs(o.position.z) < 0.8 && Math.abs(o.position.x - this.lane * 1.6) < 0.8 && this.y < 0.8) {
+        this.endRun();
+        return;
+      }
+
+      if (o.position.z > removalThreshold) {
+        runnerGroup.remove(o);
+        this.obstacles.splice(i, 1);
+      }
+    }
+
+    for (let i = this.collectibles.length - 1; i >= 0; i--) {
+      const c = this.collectibles[i];
+      c.position.z += this.speed * dt;
+      c.rotation.y += dt * 2;
+
+      // Collection
+      if (Math.abs(c.position.z) < 0.8 && Math.abs(c.position.x - this.lane * 1.6) < 0.8 && this.y < 0.8) {
+        this.stars += 1;
+        runnerGroup.remove(c);
+        this.collectibles.splice(i, 1);
+        // Optional: play sound
+        continue;
+      }
+
+      if (c.position.z > removalThreshold) {
+        runnerGroup.remove(c);
+        this.collectibles.splice(i, 1);
+      }
+    }
 
     updateRunnerHUD();
     if (this.t >= 30 && !isDone('runner_30s')) awardMilestone('runner_30s');
